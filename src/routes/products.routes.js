@@ -2,23 +2,48 @@ const fs= require ('fs')
 const express = require('express');
 const ProductManager= require ('../ProductManager')
 
+const AgregarProduct = './carrito.json'
+
 
 const router = express.Router();
 
-
 const  ArchivoProductos= './productos.json'
 
+const productos=[];
+
+
+
+
+
+
 router.post('/api/products', (req, res) => {
-  const { id,title,description,price,thumbnail,code,stock,status,category  } = req.body;
- 
-  fs.writeFile(ArchivoProductos, JSON.stringify(req.body, null, 2), (error) =>{
+  
+const body= req.body
+  const nuevoProduct = {
+
+    id:ArchivoProductos.length +1,
+    title: body.title,
+    description: body.description,
+    price:body.price,
+    thumbnail: body.thumbnail,
+    code: body.code,
+    stock: body.stock,
+    status: body.status,
+    category:body.category
+  };
+
+
+
+  productos.push(nuevoProduct)
+  fs.writeFile(ArchivoProductos, JSON.stringify(body, null, 2), (error) =>{
     if(error) throw error;
     res.status(200).send({mensaje:'Se guardo Archivo'})
   })
-  
+ 
 
 
 })
+
 
 
 router.get('/api/products', async (req, res) => {
@@ -58,18 +83,14 @@ router.get('/api/products', async (req, res) => {
 
 
   router.put('/api/products/:pid', async (req, res) => {
-    try {
-      const { id, indice, campo } = req.body;
-      await ArchivoProductos.updateProduct(id, indice, campo);
-  
-      if (ArchivoProductos === -1) {
-          res.status(200).send({mensaje:' Producto Actualizado' });
-      } else {
-          res.status(400).send({mensaje:' Error' });
-      }
-  } catch (err) {
-      res.status(500).send({mensaje: 'Error' });
-  }
+    const products = await fs.promises.readFile(ArchivoProductos,'utf-8' );
+    const productsJson = await JSON.parse(products);
+    const nuevaData=  productsJson.find(product =>product.id === parseInt(req.params.pid))
+    if(!nuevaData){
+      res.status(404).send({mensaje:"No se encontro producto"});
+    }
+    productsJson.map(product =>product.id === parseInt(req.params.pid) ? {...product, ...nuevaData }: product)
+    res.status(200).send({mensaje:'Producto Actualizado' });
 });
 
 
@@ -81,13 +102,13 @@ router.delete('/api/products/:pid', async (req, res) => {
     const products = await fs.promises.readFile(ArchivoProductos,'utf-8' );
     const productsJson = await JSON.parse(products);
   
-    const borrarItemConFilter = productsJson.filter(product =>product.id != parseInt(req.params.pid))
+    const borrarItem = productsJson.find(product =>product.id === parseInt(req.params.pid))
   
-    if(req.params.pid <= borrarItemConFilter.length  ){
-      return (`No se encontro producto con ese ID`)
+    if(!borrarItem){
+      res.status(404).send({mensaje:"No se encontro producto con ese ID"});
       
     }
-  
+    const borrarItemConFilter = productsJson.filter(product =>product.id != parseInt(req.params.pid))
     fs.writeFile(ArchivoProductos, JSON.stringify(borrarItemConFilter), error =>{
       if(error) throw error;
       res.status(404).send({mensaje:"El producto fue eliminado"});
@@ -98,7 +119,43 @@ router.delete('/api/products/:pid', async (req, res) => {
   
 })
 
+router.post('/api/carts',async (req, res) => {  
+  const body= req.body
+  const nuevoProductC = {
 
+    id:AgregarProduct.length +1,
+    title: body.title,
+    price:body.price,
+    quantity:body.quantity
+  };
+
+
+
+
+  productos.push(nuevoProductC)
+  fs.writeFile(AgregarProduct, JSON.stringify(body, null, 2), (error) =>{
+    if(error) throw error;
+    res.status(200).send({mensaje:'Se guardo Archivo'})
+  })
+  
+});
+
+
+router.get('/api/carts/:pid', async (req, res) => {
+  try {
+      const products = await fs.promises.readFile(AgregarProduct, 'utf-8');
+      const productsJson = await JSON.parse(products);
+      const product = productsJson.find(product => product.id === parseInt(req.params.pid));
+      if (product) {
+          res.status(200).send(product);
+      } else {
+          res.status(404).send({ mensaje: 'ERROR: No hay producto, no existe' });
+      }
+  } catch(err) {
+
+      res.status(500).send(err);
+  }
+});
 
 
     module.exports = router;
